@@ -8,6 +8,7 @@
 
 #define NUMDOCS (1024 * 1024 * 128)
 #define NUMLISTS 499692
+#define MAXSELECTORS 10000
 
 
 int main(int argc, char *argv[])
@@ -17,15 +18,17 @@ int main(int argc, char *argv[])
 	if (NULL == (fp = fopen(filename, "rb")))
 		exit(printf("Cannot open %s\n", filename));
 
+	int total_raw_size = 0;
+	int total_compressed_size = 0;
+	
 	int listnumber = 0;
 	uint length;
 	int *postings_list = new int[NUMDOCS];
 	int *dgaps = new int[NUMDOCS];
 	int *payload = new int [NUMDOCS];
-	int *selectors = new int [10000];
+	int *selectors = new int [MAXSELECTORS];
 	int *decoded = new int [NUMDOCS];
-
-	int num_large = 0;
+	uint8_t *compressed_selectors = new uint8_t [MAXSELECTORS];
 	
 	while (fread(&length, sizeof(length), 1, fp) == 1)
 		{
@@ -50,10 +53,15 @@ int main(int argc, char *argv[])
 		int num_selectors = whakaiti.generate_selectors(selectors, dgaps, dgaps + length);
 		Pack512::listrecord result = whakaiti.avx_optimal_pack(payload, selectors, num_selectors, dgaps, dgaps + length);
 		Pack512::listrecord result2 = whakaiti.avx_compress(payload, compressed_selectors, selectors, num_selectors, dgaps, dgaps + length);
+		//Pack512::listrecord result3 = whakaiti.avx_r_compress(payload, twice_compressed_selectors, selectors, num_selectors, dgaps, dgaps + length);
 
+		int raw_bytes = length * 4;
+		total_raw_size += raw_bytes;
+		total_compressed_size += result2.payload_bytes;
+		total_compressed_size += result2.selector_bytes;
 		
-		if (result.payload_bytes > 7800)
-			num_large++;
+		//printf("%d, %d, %d, %d\n", raw_bytes, result2.payload_bytes, result2.selector_bytes, result2.payload_bytes + result2.selector_bytes);
+		
 		
 		/* 
 			Decompression
@@ -72,12 +80,15 @@ int main(int argc, char *argv[])
 		listnumber++;
 		}
 
-	printf("%d of %d lists would benefit from recursive compression\n", num_large, NUMLISTS);
-	
+	printf("raw bytes: %d\n", total_raw_size);
+	printf("compressed bytes: %d\n", total_compressed_size);
+
 	delete [] payload;
 	delete [] selectors;
 	delete [] dgaps;
 	delete [] postings_list;
+	delete [] decoded;
+	delete [] compressed_selectors;
 	fclose(fp);
 		
 	return 0;

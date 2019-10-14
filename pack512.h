@@ -51,7 +51,7 @@ class Pack512
 	/* 
 		Compress both the payload and the selectors
 	 */
-	listrecord avx_compress(int *payload, byte *compressed_selectors,
+	listrecord avx_compress(int *payload, uint8_t *compressed_selectors,
 		int *selectors, int num_selectors, int *raw, int *end);
 
 	/*
@@ -84,6 +84,6 @@ class Pack512
 	/*
 	  Run length encoding for selectors
 	 */
-	int run_length_encode(byte *dest, int *source, int length);
+	int run_length_encode(uint8_t *dest, int *source, int length);
 
 	};

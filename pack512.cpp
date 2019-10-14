@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <immintrin.h>
 #include <math.h>
 #include "pack512.h"
@@ -56,14 +57,14 @@ Pack512::listrecord Pack512::avx_optimal_pack(int *payload, int *selectors, int 
 	}
 
 /*
-  Pack a postings list (dgaps) using those selectors. Write
-  compressed data to "payload"
+  Pack a postings list (dgaps) using those selectors. Write compressed
+  data to "payload" and run length encoded selectors into
+  "compressed_selectors"
 */
-Pack512::listrecord Pack512::avx_compress(int *payload, byte *compressed_selectors, int *selectors, int num_selectors, int *raw, int *end)
+Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_selectors, int *selectors, int num_selectors, int *raw, int *end)
 	{
 	listrecord list;
 	list.payload_bytes = 0;
-	list.selector_bytes = 0;
 	list.dgaps_compressed = 0;
 	int *start_selectors = selectors;
 	int ns = num_selectors;
@@ -79,7 +80,7 @@ Pack512::listrecord Pack512::avx_compress(int *payload, byte *compressed_selecto
 		list.payload_bytes += 64;
 		}
 
-	run_length_encode(compressed_selectors, start_selectors, ns);
+	list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
 	
 	return list;
 	}
@@ -272,7 +273,7 @@ Pack512::wordrecord Pack512::decode_one_word(int *decoded, int *selectors, int n
 	}
 
 
-int Pack512::run_length_encode(byte *dest, int *source, int length)
+int Pack512::run_length_encode(uint8_t *dest, int *source, int length)
 	{
 	int count = 0;
 	int runlength = 0;
@@ -281,7 +282,7 @@ int Pack512::run_length_encode(byte *dest, int *source, int length)
 		int current = source[index];
 		if (current == source[index + 1])
 			{
-			// keep looking fro end of run
+			// keep looking end for of run
 			runlength++;
 			index++;
 			}
