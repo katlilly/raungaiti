@@ -24,6 +24,8 @@ int main(int argc, char *argv[])
 	int *payload = new int [NUMDOCS];
 	int *selectors = new int [10000];
 	int *decoded = new int [NUMDOCS];
+
+	int num_large = 0;
 	
 	while (fread(&length, sizeof(length), 1, fp) == 1)
 		{
@@ -40,18 +42,23 @@ int main(int argc, char *argv[])
 			dgaps[i] = postings_list[i] - prev;
 			prev = postings_list[i];
 			}
-
+		
 		/*
 		   AVX512 compression
 		*/
 		Pack512 whakaiti;
 		int num_selectors = whakaiti.generate_selectors(selectors, dgaps, dgaps + length);
 		Pack512::listrecord result = whakaiti.avx_optimal_pack(payload, selectors, num_selectors, dgaps, dgaps + length);
+		Pack512::listrecord result2 = whakaiti.avx_compress(payload, compressed_selectors, selectors, num_selectors, dgaps, dgaps + length);
 
+		
+		if (result.payload_bytes > 7800)
+			num_large++;
+		
 		/* 
 			Decompression
 		 */
-		int nd = whakaiti.avx_decompress_list(decoded, selectors, num_selectors, payload, result.dgaps_compressed);
+		int nd = whakaiti.avx_unpack_list(decoded, selectors, num_selectors, payload, result.dgaps_compressed);
 		
 		/* 
 			Error checking
@@ -64,6 +71,8 @@ int main(int argc, char *argv[])
 
 		listnumber++;
 		}
+
+	printf("%d of %d lists would benefit from recursive compression\n", num_large, NUMLISTS);
 	
 	delete [] payload;
 	delete [] selectors;

@@ -48,11 +48,17 @@ class Pack512
 	listrecord avx_optimal_pack(int *payload, int *selectors, int num_selectors,
 		int *raw, int *end);
 
+	/* 
+		Compress both the payload and the selectors
+	 */
+	listrecord avx_compress(int *payload, byte *compressed_selectors,
+		int *selectors, int num_selectors, int *raw, int *end);
+
 	/*
 	  Decompress a postings list. Currently using a non-compressed list
 	  of selectors
 	 */
-	int avx_decompress_list(int *decoded, int *selectors, int num_selectors,
+	int avx_unpack_list(int *decoded, int *selectors, int num_selectors,
 		int *payload, int to_decompress);
 
 
@@ -75,5 +81,9 @@ class Pack512
 	wordrecord decode_one_word(int *decoded, int *selectors, int num_selectors,
 		int *payload, int length);
 
+	/*
+	  Run length encoding for selectors
+	 */
+	int run_length_encode(byte *dest, int *source, int length);
 
 	};

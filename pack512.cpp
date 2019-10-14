@@ -38,6 +38,7 @@ int Pack512::generate_selectors(int *selectors, int *dgaps, int *end)
 Pack512::listrecord Pack512::avx_optimal_pack(int *payload, int *selectors, int num_selectors, int *raw, int *end)
 	{
 	listrecord list;
+	list.payload_bytes = 0;
 	list.dgaps_compressed = 0;
 
 	while (raw < end)
@@ -55,10 +56,39 @@ Pack512::listrecord Pack512::avx_optimal_pack(int *payload, int *selectors, int 
 	}
 
 /*
+  Pack a postings list (dgaps) using those selectors. Write
+  compressed data to "payload"
+*/
+Pack512::listrecord Pack512::avx_compress(int *payload, byte *compressed_selectors, int *selectors, int num_selectors, int *raw, int *end)
+	{
+	listrecord list;
+	list.payload_bytes = 0;
+	list.selector_bytes = 0;
+	list.dgaps_compressed = 0;
+	int *start_selectors = selectors;
+	int ns = num_selectors;
+
+	while (raw < end)
+		{
+		wordrecord word = encode_one_word(payload, selectors, num_selectors, raw, end);
+		payload += 16;
+		selectors += word.n_columns;
+		num_selectors -= word.n_columns;
+		raw += word.n_compressed;
+		list.dgaps_compressed += word.n_compressed;
+		list.payload_bytes += 64;
+		}
+
+	run_length_encode(compressed_selectors, start_selectors, ns);
+	
+	return list;
+	}
+
+/*
   Decompress a postings list. Currently using a non-compressed list
   of selectors
 */
-int Pack512::avx_decompress_list(int *decoded, int *selectors, int num_selectors, int *payload, int to_decompress)
+int Pack512::avx_unpack_list(int *decoded, int *selectors, int num_selectors, int *payload, int to_decompress)
 	{
 	int num_decompressed = 0;
 	wordrecord word;
@@ -239,4 +269,41 @@ Pack512::wordrecord Pack512::decode_one_word(int *decoded, int *selectors, int n
 		result.n_compressed = dgaps_decompressed;
 
 	return result;
+	}
+
+
+int Pack512::run_length_encode(byte *dest, int *source, int length)
+	{
+	int count = 0;
+	int runlength = 0;
+	for (int index = 0; index < length; )
+		{
+		int current = source[index];
+		if (current == source[index + 1])
+			{
+			// keep looking fro end of run
+			runlength++;
+			index++;
+			}
+		else
+			{
+			// have found the end of a run, now write it out
+			index++;
+			while(runlength > 7)
+				{
+				dest[count] = 0;
+				dest[count] |= 7;
+				dest[count] |= current << 3;
+				runlength -= 8;
+				count++;
+				}
+			dest[count] = 0;
+			dest[count] |= runlength;
+			dest[count] |= current << 3;
+			count++;
+			current = source[index];
+			runlength = 0;
+			}
+		}
+	return count; // return number of bytes written
 	}
