@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
 			Decompression
 		 */
 		int nd = whakaiti.avx_unpack_list(decoded, selectors, num_selectors, payload, result.dgaps_compressed);
+		int nd2 = whakaiti.decompress(decoded, compressed_selectors, result2.selector_bytes, payload, result.dgaps_compressed);
 		
 		/* 
 			Error checking
@@ -77,11 +78,12 @@ int main(int argc, char *argv[])
 			if (dgaps[i] != decoded[i])
 				exit(printf("decompressed data != original\n"));
 
+
 		listnumber++;
 		}
 
-	printf("raw bytes: %d\n", total_raw_size);
-	printf("compressed bytes: %d\n", total_compressed_size);
+	printf("raw bytes:        %d\n", total_raw_size);
+	printf("compressed bytes:  %d\n", total_compressed_size);
 
 	delete [] payload;
 	delete [] selectors;

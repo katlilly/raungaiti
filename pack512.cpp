@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <stdio.h>
 #include <immintrin.h>
 #include <math.h>
 #include "pack512.h"
@@ -10,9 +11,9 @@
 */
 int Pack512::generate_selectors(int *selectors, int *dgaps, int *end)
 	{
-	int column = 0;
 	int length = end - dgaps;
-	int current = 0;
+	int current = 0; // index of first element in a column
+	int column = 0; // index of selector
 
 	while (current < length)
 		{
@@ -41,6 +42,7 @@ Pack512::listrecord Pack512::avx_optimal_pack(int *payload, int *selectors, int 
 	listrecord list;
 	list.payload_bytes = 0;
 	list.dgaps_compressed = 0;
+	list.num_selectors = num_selectors;
 
 	while (raw < end)
 		{
@@ -66,6 +68,7 @@ Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_sele
 	listrecord list;
 	list.payload_bytes = 0;
 	list.dgaps_compressed = 0;
+	list.num_selectors = num_selectors;
 	int *start_selectors = selectors;
 	int ns = num_selectors;
 
@@ -109,6 +112,33 @@ int Pack512::avx_unpack_list(int *decoded, int *selectors, int num_selectors, in
 
 	return num_decompressed;
 	}
+
+/* 
+	Decompress both the payload and the selectors
+*/
+int Pack512::decompress(int *decoded, uint8_t *compressed_selectors, int selector_bytes, int *payload, int dgaps_to_decompress)
+	{
+	int *selectors = new int[dgaps_to_decompress];
+	int num_selectors = run_length_decode(selectors, compressed_selectors, selector_bytes);
+	// int num_selectors = 0;
+	// for (int i = 0; i < selector_bytes; i++)
+	// 	{
+	// 	int value = (compressed_selectors[i] & 248) >> 3;
+	// 	int repeats = compressed_selectors[i] & 7;
+	// 	selectors[num_selectors++] = value;
+	// 	for (int j = 0; j < repeats; j++)
+	// 		selectors[num_selectors++] = value;
+	// 	}
+		
+
+
+	int num_decompressed = 0;
+
+	
+	delete [] selectors;
+	return num_decompressed;
+	}
+
 
 /* 
 	efficiently calculate the number of bits needed for the binary
@@ -161,7 +191,7 @@ Pack512::wordrecord Pack512::encode_one_word(int *payload, int *selectors, int n
 	__m512i indexvector = _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
 	__m512i columnvector;
 
-   /*
+	/*
 	  Find how many columns to pack in this word
 	*/
 	int sum = 0;
@@ -307,4 +337,18 @@ int Pack512::run_length_encode(uint8_t *dest, int *source, int length)
 			}
 		}
 	return count; // return number of bytes written
+	}
+
+int Pack512::run_length_decode(int *decompressed, uint8_t *encoded, int length)
+	{
+	int count = 0;
+	for (int i = 0; i < length; i++)
+		{
+		int value = (encoded[i] & 248) >> 3;
+		int repeats = encoded[i] & 7;
+		decompressed[count++] = value;
+		for (int j = 0; j < repeats; j++)
+			decompressed[count++] = value;
+		}
+	return count;  // return number of column widths decompressed
 	}
