@@ -28,8 +28,9 @@ int Pack512::generate_selectors(int *selectors, int *dgaps, int *end)
 
 		/* write out this column width to selector array */
 		selectors[column++] = column_width;
+		//printf("%d, ", column_width);
 		}
-	
+	//printf("\n");
 	return column;
 	}
 
@@ -84,7 +85,8 @@ Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_sele
 		}
 
 	list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
-	
+//	printf("from avx_compress(): compressed selectors into %d bytes\n", list.selector_bytes);
+
 	return list;
 	}
 
@@ -120,15 +122,10 @@ int Pack512::decompress(int *decoded, uint8_t *compressed_selectors, int selecto
 	{
 	int *selectors = new int[dgaps_to_decompress];
 	int num_selectors = run_length_decode(selectors, compressed_selectors, selector_bytes);
-	// int num_selectors = 0;
-	// for (int i = 0; i < selector_bytes; i++)
-	// 	{
-	// 	int value = (compressed_selectors[i] & 248) >> 3;
-	// 	int repeats = compressed_selectors[i] & 7;
-	// 	selectors[num_selectors++] = value;
-	// 	for (int j = 0; j < repeats; j++)
-	// 		selectors[num_selectors++] = value;
-	// 	}
+//	for (int i = 0; i < num_selectors; i++)
+//		printf("%d, ", selectors[i]);
+//	printf("\n");
+	
 		
 
 
@@ -302,7 +299,10 @@ Pack512::wordrecord Pack512::decode_one_word(int *decoded, int *selectors, int n
 	return result;
 	}
 
-
+/*
+  Run length compression for selectors, return number of bytes used to
+  compressed selectors
+ */
 int Pack512::run_length_encode(uint8_t *dest, int *source, int length)
 	{
 	int count = 0;
@@ -322,12 +322,14 @@ int Pack512::run_length_encode(uint8_t *dest, int *source, int length)
 			index++;
 			while(runlength > 7)
 				{
+				//printf("next byte: %d x%d\n", current, 8);
 				dest[count] = 0;
 				dest[count] |= 7;
 				dest[count] |= current << 3;
 				runlength -= 8;
 				count++;
 				}
+			//printf("last byte of run: %d x%d\n", current, runlength+1);
 			dest[count] = 0;
 			dest[count] |= runlength;
 			dest[count] |= current << 3;
@@ -339,6 +341,10 @@ int Pack512::run_length_encode(uint8_t *dest, int *source, int length)
 	return count; // return number of bytes written
 	}
 
+/*
+  Decoding of run length encoded selectors, return number of selectors
+  decompressed
+ */
 int Pack512::run_length_decode(int *decompressed, uint8_t *encoded, int length)
 	{
 	int count = 0;
@@ -349,6 +355,8 @@ int Pack512::run_length_decode(int *decompressed, uint8_t *encoded, int length)
 		decompressed[count++] = value;
 		for (int j = 0; j < repeats; j++)
 			decompressed[count++] = value;
+		//count += repeats;
 		}
+	
 	return count;  // return number of column widths decompressed
 	}

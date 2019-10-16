@@ -11,6 +11,28 @@
 #define MAXSELECTORS 10000
 
 
+int new_run_length_encode(int *source, int length)
+	{
+	int prev, current;
+	int bytes_used = 0;
+	for (int i = 1; i < length; i++)
+		{
+		prev = source[i-1];
+		printf("prev: %d", prev);
+		for (int j = i; j < length - i; j++)
+			{
+			current = source[j];
+			printf(" current: %d", current);
+			if (prev != current)
+				break;
+			}
+		printf("\n");
+		}
+
+	return bytes_used;
+	}
+
+
 int main(int argc, char *argv[])
 	{
 	const char *filename = "../pme/postings.bin";
@@ -45,12 +67,17 @@ int main(int argc, char *argv[])
 			dgaps[i] = postings_list[i] - prev;
 			prev = postings_list[i];
 			}
-		
+
+//		if (listnumber == 94)
+		if (true)
+			{
 		/*
 		   AVX512 compression
 		*/
 		Pack512 whakaiti;
+		//printf("\nlistnumber: %d\n", listnumber);
 		int num_selectors = whakaiti.generate_selectors(selectors, dgaps, dgaps + length);
+		//printf("last selector before compression: %d\n", selectors[num_selectors-1]);
 		Pack512::listrecord result = whakaiti.avx_optimal_pack(payload, selectors, num_selectors, dgaps, dgaps + length);
 		Pack512::listrecord result2 = whakaiti.avx_compress(payload, compressed_selectors, selectors, num_selectors, dgaps, dgaps + length);
 		//Pack512::listrecord result3 = whakaiti.avx_r_compress(payload, twice_compressed_selectors, selectors, num_selectors, dgaps, dgaps + length);
@@ -59,7 +86,8 @@ int main(int argc, char *argv[])
 		total_raw_size += raw_bytes;
 		total_compressed_size += result2.payload_bytes;
 		total_compressed_size += result2.selector_bytes;
-		
+
+		//printf("selectors compressed into %d bytes\n", result2.selector_bytes);
 		//printf("%d, %d, %d, %d\n", raw_bytes, result2.payload_bytes, result2.selector_bytes, result2.payload_bytes + result2.selector_bytes);
 		
 		
@@ -68,6 +96,11 @@ int main(int argc, char *argv[])
 		 */
 		int nd = whakaiti.avx_unpack_list(decoded, selectors, num_selectors, payload, result.dgaps_compressed);
 		int nd2 = whakaiti.decompress(decoded, compressed_selectors, result2.selector_bytes, payload, result.dgaps_compressed);
+
+
+		if (listnumber == 62)
+			new_run_length_encode(selectors, num_selectors);
+
 		
 		/* 
 			Error checking
@@ -78,7 +111,7 @@ int main(int argc, char *argv[])
 			if (dgaps[i] != decoded[i])
 				exit(printf("decompressed data != original\n"));
 
-
+			}
 		listnumber++;
 		}
 

@@ -92,8 +92,8 @@ class Pack512
 	int run_length_encode(uint8_t *dest, int *source, int length);
 
 	/*
-	  Run length decoding for selectors, return number of selectors
-	  decoded
+	  Decoding of run length encoded selectors, return number of selectors
+	  decompressed
 	*/
 	int run_length_decode(int *dest, uint8_t *source, int selector_bytes);
 
