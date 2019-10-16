@@ -70,6 +70,8 @@ Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_sele
 	list.payload_bytes = 0;
 	list.dgaps_compressed = 0;
 	list.num_selectors = num_selectors;
+
+	// need keep a record of the original values of these so can use them in compressing selectors
 	int *start_selectors = selectors;
 	int ns = num_selectors;
 
@@ -85,7 +87,6 @@ Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_sele
 		}
 
 	list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
-//	printf("from avx_compress(): compressed selectors into %d bytes\n", list.selector_bytes);
 
 	return list;
 	}
@@ -305,58 +306,49 @@ Pack512::wordrecord Pack512::decode_one_word(int *decoded, int *selectors, int n
  */
 int Pack512::run_length_encode(uint8_t *dest, int *source, int length)
 	{
-	int count = 0;
-	int runlength = 0;
-	for (int index = 0; index < length; )
+	int index, current, runlength;
+	int bytes_used = 0;
+
+	index = 0;
+	while (index < length)
 		{
-		int current = source[index];
-		if (current == source[index + 1])
-			{
-			// keep looking end for of run
+		current = source[index];
+		runlength = 1;
+
+		while (current == source[index + runlength] && index + runlength < length)
 			runlength++;
-			index++;
-			}
-		else
-			{
-			// have found the end of a run, now write it out
-			index++;
-			while(runlength > 7)
-				{
-				//printf("next byte: %d x%d\n", current, 8);
-				dest[count] = 0;
-				dest[count] |= 7;
-				dest[count] |= current << 3;
-				runlength -= 8;
-				count++;
-				}
-			//printf("last byte of run: %d x%d\n", current, runlength+1);
-			dest[count] = 0;
-			dest[count] |= runlength;
-			dest[count] |= current << 3;
-			count++;
-			current = source[index];
-			runlength = 0;
-			}
+
+		int repeats = runlength - 1;
+		dest[bytes_used++] = current;
+		dest[bytes_used++] = repeats;
+		if (repeats > 255)
+			exit(printf("run length can fit in a byte\n"));
+		index += runlength;
 		}
-	return count; // return number of bytes written
+
+	return bytes_used;
 	}
 
 /*
   Decoding of run length encoded selectors, return number of selectors
   decompressed
  */
-int Pack512::run_length_decode(int *decompressed, uint8_t *encoded, int length)
+int Pack512::run_length_decode(int *dest, uint8_t *source, int length)
 	{
-	int count = 0;
-	for (int i = 0; i < length; i++)
+	int index = 0;
+	int decoded_length = 0;
+
+	while (index < length)
 		{
-		int value = (encoded[i] & 248) >> 3;
-		int repeats = encoded[i] & 7;
-		decompressed[count++] = value;
-		for (int j = 0; j < repeats; j++)
-			decompressed[count++] = value;
-		//count += repeats;
+		int value = source[index];
+		int runlength = source[index + 1] + 1;
+
+		for (int i = 0; i < runlength; i++)
+			dest[decoded_length + i] = value;
+
+		decoded_length += runlength;
+		index += 2;
 		}
 	
-	return count;  // return number of column widths decompressed
+	return decoded_length;
 	}
