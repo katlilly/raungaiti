@@ -12,8 +12,8 @@
 int Pack512::generate_selectors(int *selectors, int *dgaps, int *end)
 	{
 	int length = end - dgaps;
-	int current = 0; // index of first element in a column
-	int column = 0; // index of selector
+	int current = 0;  // index of first element in a column
+	int column = 0;   // index of selector
 
 	while (current < length)
 		{
@@ -28,15 +28,14 @@ int Pack512::generate_selectors(int *selectors, int *dgaps, int *end)
 
 		/* write out this column width to selector array */
 		selectors[column++] = column_width;
-		//printf("%d, ", column_width);
 		}
-	//printf("\n");
+
 	return column;
 	}
 
 /*
-  Pack a postings list (dgaps) using those selectors. Write
-  compressed data to "payload"
+  Pack a postings list (dgaps) using those selectors. Write compressed
+  data to "payload".  There is no compression of selectors here.
 */
 Pack512::listrecord Pack512::avx_optimal_pack(int *payload, int *selectors, int num_selectors, int *raw, int *end)
 	{
@@ -61,8 +60,7 @@ Pack512::listrecord Pack512::avx_optimal_pack(int *payload, int *selectors, int 
 
 /*
   Pack a postings list (dgaps) using those selectors. Write compressed
-  data to "payload" and run length encoded selectors into
-  "compressed_selectors"
+  data to "payload" and run length encoded selectors into "compressed_selectors"
 */
 Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_selectors, int *selectors, int num_selectors, int *raw, int *end)
 	{
@@ -86,7 +84,10 @@ Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_sele
 		list.payload_bytes += 64;
 		}
 
-	list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
+	if (list.payload_bytes > 7800) // should recursively compress selectors. note problem with overwriting list record
+		list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
+	else 
+		list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
 
 	return list;
 	}
@@ -121,7 +122,7 @@ int Pack512::avx_unpack_list(int *decoded, int *selectors, int num_selectors, in
 */
 int Pack512::decompress(int *decoded, uint8_t *compressed_selectors, int selector_bytes, int *payload, int dgaps_to_decompress)
 	{
-	int *selectors = new int[dgaps_to_decompress];
+	int *decompressed_selectors = new int[dgaps_to_decompress];
 	int num_selectors = run_length_decode(selectors, compressed_selectors, selector_bytes);
 //	for (int i = 0; i < num_selectors; i++)
 //		printf("%d, ", selectors[i]);
@@ -133,7 +134,7 @@ int Pack512::decompress(int *decoded, uint8_t *compressed_selectors, int selecto
 	int num_decompressed = 0;
 
 	
-	delete [] selectors;
+	delete [] decompressed_selectors;
 	return num_decompressed;
 	}
 
