@@ -34,6 +34,73 @@ int Pack512::generate_selectors(int *selectors, int *dgaps, int *end)
 	}
 
 /*
+  Pack a postings list "dgaps" using the generated selectors. Write compressed
+  data to "payload" and run length encoded selectors into "compressed_selectors"
+*/
+Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_selectors, int *selectors, int num_selectors, int *raw, int *end)
+	{
+	listrecord list;
+	list.payload_bytes = 0;
+	list.dgaps_compressed = 0;
+	list.num_selectors = num_selectors;
+
+	/* 
+		Record the original values of these so can use them for
+		compressing selectors after packing payload 
+	 */
+	int *start_selectors = selectors;
+	int ns = num_selectors;
+
+	/*
+	  Pack the payloads
+	 */
+	while (raw < end)
+		{
+		wordrecord word = encode_one_word(payload, selectors, num_selectors, raw, end);
+		payload += 16;
+		selectors += word.n_columns;
+		num_selectors -= word.n_columns;
+		raw += word.n_compressed;
+		list.dgaps_compressed += word.n_compressed;
+		list.payload_bytes += 64;
+		}
+
+	/*
+	  Compress the selectors
+	 */
+	if (list.payload_bytes > 7800) // should recursively compress selectors. note problem with overwriting list record
+		list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
+	else 
+		list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
+
+	return list;
+	}
+
+/* 
+	Decompress both the payload and the selectors. dgaps for the
+	current postings list are written to "decoded". Compressed data is
+	in "payload", compressed selectors are in "compressed_selectors".
+	Return number of dgaps decompressed.
+*/
+int Pack512::decompress(int *decoded, uint8_t *compressed_selectors, int selector_bytes, int *payload, int dgaps_to_decompress)
+	{
+	/*
+	  Decompress the selectors
+	 */
+	int *decompressed_selectors = new int[dgaps_to_decompress];
+	int num_selectors = run_length_decode(decompressed_selectors, compressed_selectors, selector_bytes);
+
+	/*
+	  Unpack the payload
+	 */
+	int num_decompressed = avx_unpack_list(decoded, decompressed_selectors, num_selectors, payload, dgaps_to_decompress);
+	
+	delete [] decompressed_selectors;
+
+	return num_decompressed;
+	}
+
+/*
   Pack a postings list (dgaps) using those selectors. Write compressed
   data to "payload".  There is no compression of selectors here.
 */
@@ -55,40 +122,6 @@ Pack512::listrecord Pack512::avx_optimal_pack(int *payload, int *selectors, int 
 		list.payload_bytes += 64;
 		}
 	
-	return list;
-	}
-
-/*
-  Pack a postings list (dgaps) using those selectors. Write compressed
-  data to "payload" and run length encoded selectors into "compressed_selectors"
-*/
-Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_selectors, int *selectors, int num_selectors, int *raw, int *end)
-	{
-	listrecord list;
-	list.payload_bytes = 0;
-	list.dgaps_compressed = 0;
-	list.num_selectors = num_selectors;
-
-	// need keep a record of the original values of these so can use them in compressing selectors
-	int *start_selectors = selectors;
-	int ns = num_selectors;
-
-	while (raw < end)
-		{
-		wordrecord word = encode_one_word(payload, selectors, num_selectors, raw, end);
-		payload += 16;
-		selectors += word.n_columns;
-		num_selectors -= word.n_columns;
-		raw += word.n_compressed;
-		list.dgaps_compressed += word.n_compressed;
-		list.payload_bytes += 64;
-		}
-
-	if (list.payload_bytes > 7800) // should recursively compress selectors. note problem with overwriting list record
-		list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
-	else 
-		list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
-
 	return list;
 	}
 
@@ -115,67 +148,6 @@ int Pack512::avx_unpack_list(int *decoded, int *selectors, int num_selectors, in
 		}
 
 	return num_decompressed;
-	}
-
-/* 
-	Decompress both the payload and the selectors
-*/
-int Pack512::decompress(int *decoded, uint8_t *compressed_selectors, int selector_bytes, int *payload, int dgaps_to_decompress)
-	{
-	int *decompressed_selectors = new int[dgaps_to_decompress];
-	int num_selectors = run_length_decode(selectors, compressed_selectors, selector_bytes);
-//	for (int i = 0; i < num_selectors; i++)
-//		printf("%d, ", selectors[i]);
-//	printf("\n");
-	
-		
-
-
-	int num_decompressed = 0;
-
-	
-	delete [] decompressed_selectors;
-	return num_decompressed;
-	}
-
-
-/* 
-	efficiently calculate the number of bits needed for the binary
-	representation. Copied from here:
-	https://github.com/torvalds/linux/blob/master/include/asm-generic/bitops/fls.h
-*/
-int Pack512::get_bitwidth(uint x)
-	{
-	int r = 32;
-
-	if (!x)
-		return 1;
-	if (!(x & 0xffff0000u))
-		{
-		x <<= 16;
-		r -= 16;
-		}
-	if (!(x & 0xff000000u))
-		{
-		x <<= 8;
-		r -= 8;
-		}
-	if (!(x & 0xf0000000u))
-		{
-		x <<= 4;
-		r -= 4;
-		}
-	if (!(x & 0xc0000000u))
-		{
-		x <<= 2;
-		r -= 2;
-		}
-	if (!(x & 0x80000000u))
-		{
-		x <<= 1;
-		r -= 1;
-		}
-	return r;
 	}
 
 /*
@@ -352,4 +324,43 @@ int Pack512::run_length_decode(int *dest, uint8_t *source, int length)
 		}
 	
 	return decoded_length;
+	}
+
+/* 
+	Efficiently calculate the number of bits needed for the binary
+	representation. Copied from here:
+	https://github.com/torvalds/linux/blob/master/include/asm-generic/bitops/fls.h
+*/
+int Pack512::get_bitwidth(uint x)
+	{
+	int r = 32;
+
+	if (!x)
+		return 1;
+	if (!(x & 0xffff0000u))
+		{
+		x <<= 16;
+		r -= 16;
+		}
+	if (!(x & 0xff000000u))
+		{
+		x <<= 8;
+		r -= 8;
+		}
+	if (!(x & 0xf0000000u))
+		{
+		x <<= 4;
+		r -= 4;
+		}
+	if (!(x & 0xc0000000u))
+		{
+		x <<= 2;
+		r -= 2;
+		}
+	if (!(x & 0x80000000u))
+		{
+		x <<= 1;
+		r -= 1;
+		}
+	return r;
 	}

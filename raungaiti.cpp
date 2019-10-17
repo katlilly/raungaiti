@@ -29,7 +29,6 @@ int main(int argc, char *argv[])
 	int *selectors = new int [MAXSELECTORS];
 	int *decoded = new int [NUMDOCS];
 	uint8_t *compressed_selectors = new uint8_t [MAXSELECTORS];
-	int *decompressed_selectors = new int [MAXSELECTORS];
 	
 	while (fread(&length, sizeof(length), 1, fp) == 1)
 		{
@@ -53,9 +52,10 @@ int main(int argc, char *argv[])
 		Pack512 whakaiti;
 		int num_selectors = whakaiti.generate_selectors(selectors, dgaps, dgaps + length);
 		Pack512::listrecord result = whakaiti.avx_compress(payload, compressed_selectors, selectors, num_selectors, dgaps, dgaps + length);
-		// also do a test with recursive compression 
-		
-		printf("%d: length: %4d, payload bytes: %4d, selector bytes: %4d\n", listnumber, length, result.payload_bytes, result.selector_bytes);
+
+		/*
+		  Count total sizes of raw and compressed data
+		 */
 		int raw_bytes = length * 4;
 		total_raw_size += raw_bytes;
 		total_compressed_size += result.payload_bytes;
@@ -64,19 +64,18 @@ int main(int argc, char *argv[])
 		/* 
 			Decompression
 		*/
-		int nd = whakaiti.avx_unpack_list(decoded, selectors, num_selectors, payload, result.dgaps_compressed);
-    int nd2 = whakaiti.decompress(decoded, compressed_selectors, result.selector_bytes, payload, result.dgaps_compressed);
+		int num_decompressed = whakaiti.decompress(decoded, compressed_selectors, result.selector_bytes, payload, result.dgaps_compressed);
 		
 		/* 
 			Error checking
 		*/
-		if ((uint) nd != length)
+		if ((uint) num_decompressed != length)
 			exit(printf("decompressed wrong number of dgaps\n"));
 
 		for (int i = 0; i < result.dgaps_compressed; i++)
 			if (dgaps[i] != decoded[i])
 				exit(printf("decompressed data != original\n"));
-		
+			
 		listnumber++;
 		}
 
