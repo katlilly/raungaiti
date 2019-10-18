@@ -245,18 +245,18 @@ Pack512::wordrecord Pack512::decode_one_word(int *decoded, int *selectors, int n
 	*/
 	for (int i = 0; i < num_columns; i++)
 		{
-		// get selector and create bitmask vector
+		/* get selector and create bitmask vector */
 		int width = selectors[i];
 		int mask = pow(2, width) - 1;
 		__m512i mask_vector = _mm512_set1_epi32(mask);
 		
-		// get 16 dgaps by ANDing mask with compressed word
+		/* get 16 dgaps by ANDing mask with compressed word */
 		decomp_vector = _mm512_and_epi32(compressed_word, mask_vector);
 
-		// write those 16 numbers to int array of decoded dgaps
+		/* write those 16 numbers to int array of decoded dgaps */
 		_mm512_i32scatter_epi32(decoded, indexvector, decomp_vector, 4);
 
-		// right shift the remaining data in the compressed word
+		/* right shift the remaining data in the compressed word */
 		compressed_word = _mm512_srli_epi32(compressed_word, width);
 
 		dgaps_decompressed += 16;
@@ -295,7 +295,7 @@ int Pack512::run_length_encode(uint8_t *dest, int *source, int length)
 		dest[bytes_used++] = current;
 		dest[bytes_used++] = repeats;
 		if (repeats > 255)
-			exit(printf("run length can fit in a byte\n"));
+			exit(printf("run length can't fit in a byte\n"));
 		index += runlength;
 		}
 
