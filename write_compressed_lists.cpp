@@ -62,17 +62,15 @@ int main(int argc, char *argv[])
 		*/
 		int listsize = 16 + result.payload_bytes + result.selector_bytes;
 		fwrite(&cumulativesize, 4, 1, locations);  // write start location
-		fwrite(&listsize, 4, 1, locations);        // write length (listsize)
+		fwrite(&listsize, 4, 1, locations);        // write length
 		cumulativesize += listsize;
 
-		// compressed_lists file
 		fwrite(&result.payload_bytes, 4, 1, compressed_lists);
 		fwrite(&result.dgaps_compressed, 4, 1, compressed_lists);
 		fwrite(payload, 1, result.payload_bytes, compressed_lists);
 		fwrite(&result.selector_bytes, 4, 1, compressed_lists);
 		fwrite(&result.num_selectors, 4, 1, compressed_lists);
 		fwrite(compressed_selectors, 1, result.selector_bytes, compressed_lists);
-
 		
 		listnumber++;
 		}
