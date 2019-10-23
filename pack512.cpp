@@ -126,7 +126,7 @@ Pack512::listrecord Pack512::avx_optimal_pack(int *payload, int *selectors, int 
 	}
 
 /*
-  Decompress a postings list. Currently using a non-compressed list
+  Decompress a postings list. This function uses a non-compressed list
   of selectors
 */
 int Pack512::avx_unpack_list(int *decoded, int *selectors, int num_selectors, int *payload, int to_decompress)

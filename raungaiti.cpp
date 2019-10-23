@@ -36,15 +36,21 @@ int main(int argc, char *argv[])
 	int *decoded = new int [NUMDOCS];
 	uint8_t *compressed_selectors = new uint8_t [MAXSELECTORS];
 	
-	int *sel_selectors = new int [MAXSELECTORS];
-	int *rec_payload = new int [NUMDOCS];
-	uint8_t *compressed_rec_selectors = new uint8_t [MAXSELECTORS];
+//	int *sel_selectors = new int [MAXSELECTORS];
+//	int *rec_payload = new int [NUMDOCS];
+//	uint8_t *compressed_rec_selectors = new uint8_t [MAXSELECTORS];
+
+	long totalints = 0;
+//	long totalbytes = 0;
+	long total_payload_size = 0;
+	long total_selector_size = 0;
 	
 	while (fread(&length, sizeof(length), 1, fp) == 1)
 		{
 		if (fread(postings_list, sizeof(*postings_list), length, fp) != length)
 			exit(printf("error reading in postings list, listnumber: %d\n", listnumber));
 
+		
 		/* 
 			Convert docnums to dgaps
 		*/
@@ -64,14 +70,12 @@ int main(int argc, char *argv[])
 		
 		Pack512::listrecord result = whakaiti.avx_compress(payload, compressed_selectors, selectors, num_selectors, dgaps, dgaps + length);
 
-		if (result.payload_bytes > 7800)
-			{
-			
-			// measure size resulting from recursive compression
-			int num_sel_selectors = whakaiti.generate_selectors(sel_selectors, selectors, selectors + num_selectors);
-			Pack512::listrecord rec_result = whakaiti.avx_compress(rec_payload, compressed_rec_selectors, sel_selectors, num_sel_selectors, selectors, selectors + num_selectors);
-			printf("old selector size: %4d bytes, new selector size: %4d bytes\n", result.selector_bytes, rec_result.selector_bytes + rec_result.payload_bytes);
-			}
+//		if (result.payload_bytes > 7800)
+//			{
+//			int num_sel_selectors = whakaiti.generate_selectors(sel_selectors, selectors, selectors + num_selectors);
+//			Pack512::listrecord rec_result = whakaiti.avx_compress(rec_payload, compressed_rec_selectors, sel_selectors, num_sel_selectors, selectors, selectors + num_selectors);
+//			printf("old selector size: %4d bytes, new selector size: %4d bytes\n", result.selector_bytes, rec_result.selector_bytes + rec_result.payload_bytes);
+//			}
 
 			
 		/*
@@ -79,14 +83,24 @@ int main(int argc, char *argv[])
 		 */
 		int raw_bytes = length * 4;
 		total_raw_size += raw_bytes;
-		total_compressed_size += result.payload_bytes;
-		total_compressed_size += result.selector_bytes;
-
+//		if (raw_bytes < result.payload_bytes)
+//			{
+//			total_compressed_size += raw_bytes;
+//			}
+//		else
+//			{
+			total_compressed_size += result.payload_bytes;
+			total_compressed_size += result.selector_bytes;
+//			}
+		total_payload_size += result.payload_bytes;
+		total_selector_size += result.selector_bytes;
+		totalints += length;
+		
 		if (result.payload_bytes == 64)
 			small_payload_total_size += 64;
 		else if (result.payload_bytes > 7800)
 			large_payload_total_size += result.payload_bytes;
-		
+
 		/* 
 			Decompression
 		*/
@@ -111,6 +125,14 @@ int main(int argc, char *argv[])
 	printf("total bytes in large lists: %d\n", large_payload_total_size);
 	printf("total bytes in short lists: %d\n", small_payload_total_size);
 
+	double bitsperint = (double) total_compressed_size * 8 / totalints;
+	double payloadbitsperint = (double) total_payload_size * 8 / totalints;
+	double selectorbitsperint = (double) total_selector_size * 8 / totalints;
+	printf("bits per int:          %.2f\n", bitsperint);
+	printf("payload bits per int:  %.2f\n", payloadbitsperint);
+	printf("selector bits per int:  %.2f\n", selectorbitsperint);
+
+	
 	delete [] payload;
 	delete [] selectors;
 	delete [] dgaps;
