@@ -80,7 +80,7 @@ class Pack512
 	  Unpack a postings list. Currently using a non-compressed list
 	  of selectors
 	*/
-	int avx_unpack_list(int *decoded, int *selectors, int num_selectors,
+	int avx_unpack_list(int *decoded, uint8_t *selectors, int num_selectors,
 		int *payload, int to_decompress);
 
    /*
@@ -92,7 +92,7 @@ class Pack512
 	/*
 	  Decompress one 512-bit word
 	*/
-	wordrecord decode_one_word(int *decoded, int *selectors, int num_selectors,
+	wordrecord decode_one_word(int *decoded, uint8_t *selectors, int num_selectors,
 		int *payload, int length);
 	
 	/*

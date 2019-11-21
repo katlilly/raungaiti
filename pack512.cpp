@@ -114,21 +114,22 @@ Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *selectors, int 
 	current postings list are written to "decoded". Compressed data is
 	in "payload", compressed selectors are in "compressed_selectors".
 	Return number of dgaps decompressed.
+actually using non-compressed selectors at the moment, just storing them in one byte each
 */
-int Pack512::decompress(int *decoded, uint8_t *compressed_selectors, int selector_bytes, int *payload, int dgaps_to_decompress)
+int Pack512::decompress(int *dest, uint8_t *selectors, int num_selectors, int *payload, int dgaps_to_decompress)
 	{
 	/*
 	  Decompress the selectors
 	 */
-	int *decompressed_selectors = new int[dgaps_to_decompress];
-	int num_selectors = run_length_decode(decompressed_selectors, compressed_selectors, selector_bytes);
+//	int *decompressed_selectors = new int[dgaps_to_decompress];
+//	int num_selectors = run_length_decode(decompressed_selectors, compressed_selectors, selector_bytes);
 
 	/*
 	  Unpack the payload
 	 */
-	int num_decompressed = avx_unpack_list(decoded, decompressed_selectors, num_selectors, payload, dgaps_to_decompress);
+	int num_decompressed = avx_unpack_list(dest, selectors, num_selectors, payload, dgaps_to_decompress);
 	
-	delete [] decompressed_selectors;
+//	delete [] decompressed_selectors;
 
 	return num_decompressed;
 	}
@@ -162,7 +163,7 @@ Pack512::listrecord Pack512::avx_optimal_pack(int *payload, uint8_t *selectors, 
   Decompress a postings list. This function uses a non-compressed list
   of selectors
 */
-int Pack512::avx_unpack_list(int *decoded, int *selectors, int num_selectors, int *payload, int to_decompress)
+int Pack512::avx_unpack_list(int *decoded, uint8_t *selectors, int num_selectors, int *payload, int to_decompress)
 	{
 	int num_decompressed = 0;
 	wordrecord word;
@@ -246,7 +247,7 @@ Pack512::wordrecord Pack512::encode_one_word(int *payload, uint8_t *selectors, i
 /*
   Decompress one 512-bit word
 */
-Pack512::wordrecord Pack512::decode_one_word(int *decoded, int *selectors, int num_selectors, int *payload, int length)
+Pack512::wordrecord Pack512::decode_one_word(int *decoded, uint8_t *selectors, int num_selectors, int *payload, int length)
 	{
 	int dgaps_decompressed = 0;
 	

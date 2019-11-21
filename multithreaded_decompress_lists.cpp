@@ -4,29 +4,16 @@
 #include <stdint.h>
 #include "pack512.h"
 
-// class list_location
-// 	{
-// public:
-// 	int start;
-// 	int length;
-  
-// public:
-// 	list_location() : start(0), length(0)
-// 		{
-// 		// nothing
-// 		}
-// 	};
-
 
 class list_data
 	{
 public:
-	int length;
-	int payload_bytes;
-	int selector_bytes;
+	int length = 0;
+	int payload_bytes = 0;
+	int selector_bytes = 0;
 
 public:
-	list_data() : payload_bytes(0), length(0), selector_bytes(0)
+	list_data() //: payload_bytes(0), length(0), selector_bytes(0)
 		{
 		//nothing
 		}
@@ -66,7 +53,7 @@ int main(void)
 		exit(printf("failed to read in pointers to starts of lists\n"));
 	fclose(fp);
 	for (int i = 0; i < num_elements; i++)
-		printf("%d: length %d, payload bytes %d, selector bytes %d\n",i, metadata[i].length, metadata[i].payload_bytes, metadata[i].selector_bytes);
+		;//printf("%d: length %d, payload bytes %d, selector bytes %d\n",i, metadata[i].length, metadata[i].payload_bytes, metadata[i].selector_bytes);
 
 	
    /*
@@ -86,22 +73,32 @@ int main(void)
 	/*
 	  Decompress list #1
 	*/
-	int i = 2;
+	int i = 1;
 	printf("start: %d\n", pointers[i]);
-	int payload_bytes = *((int *)compressedpostings + pointers[i]);
-	int listlength = *(compressedpostings + pointers[i] + 4);
-	int selector_bytes = *(compressedpostings + pointers[i] + 8);
-	int numselectors = *(compressedpostings + pointers[i] + 12);
-	printf("payload bytes: %d, length: %d, selector bytes: %d, n selectors: %d\n", payload_bytes, listlength, selector_bytes, numselectors);
+	int listlength = metadata[i].length;
+	int payload_bytes = metadata[i].payload_bytes;
+	int numselectors = metadata[i].selector_bytes;
+	printf("length: %d, payload bytes: %d, selector bytes: %d\n",
+		listlength, payload_bytes, numselectors);
 
-//	Pack512 whakanui;
-//	int *decoded = new int[listlength];
-//	uint8_t *selectors = compressedpostings + locations[i] + 12 + payload_bytes;
+	Pack512 whakanui;
+	//allocate memory to decode into
+	int *decoded = new int[listlength];
+	// pointer to payload
+	uint8_t *payload = compressedpostings + pointers[i];
+	// pointer to selectors
+	uint8_t *selectors = compressedpostings + pointers[i] + payload_bytes;
 //	for (int j = 0; j < numselectors; j++)
 //		printf("%d, ", selectors[j]);
 //	printf("\n");
-	//int num_decompressed = whakanui.decompress(decoded, (uint8_t *) compressed_selectors, selector_bytes, (int *) payload, listlength);
+	
+	int num_decompressed = whakanui.decompress(decoded, selectors, numselectors, (int *) payload, listlength);
 
+	printf("decompressed %d dgaps\n", num_decompressed);
 
+	for (int i = 0; i < num_decompressed; i++)
+		printf("%d, ", decoded[i]);
+	printf("\n");
+	
 	return 0;
 	}
