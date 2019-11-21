@@ -40,15 +40,22 @@ class Pack512
 	  16-int vector. Write those widths to the int array "selectors"
 	  and return the number of selectors generated.
 	*/
-	int generate_selectors(int *selectors, int *dgaps, int *end);
+	int generate_selectors(uint8_t *selectors, int *dgaps, int *end);
 
 	/* 
 		Pack a postings list "dgaps" using the generated selectors.
 		Write compressed data to "payload" and run length encoded
 		selectors into "compressed_selectors"
 	*/
-	listrecord avx_compress(int *payload, uint8_t *compressed_selectors,
-		int *selectors, int num_selectors, int *raw, int *end);
+//	listrecord avx_compress(int *payload, uint8_t *compressed_selectors,
+//		int *selectors, int num_selectors, int *raw, int *end);
+
+	/* 
+		Pack a postings list "dgaps" using the generated selectors.
+		Write compressed data to "payload" and don't compress the selectors
+	*/
+	listrecord avx_compress(int *payload, uint8_t *selectors, int num_selectors,
+		int *raw, int *end);
 
 	/* 
 		Decompress both the payload and the selectors. dgaps for the
@@ -66,7 +73,7 @@ class Pack512
 	  Pack a postings list (dgaps) using generated selectors. Write
 	  compressed data to "payload"
 	*/
-	listrecord avx_optimal_pack(int *payload, int *selectors, int num_selectors,
+	listrecord avx_optimal_pack(int *payload, uint8_t *selectors, int num_selectors,
 		int *raw, int *end);
 
 	/*
@@ -79,7 +86,7 @@ class Pack512
    /*
 	  Pack one 512-bit word
 	*/
-	wordrecord encode_one_word(int *payload, int *selectors, int num_selectors,
+	wordrecord encode_one_word(int *payload, uint8_t *selectors, int num_selectors,
 		int *raw, int *end);
 
 	/*

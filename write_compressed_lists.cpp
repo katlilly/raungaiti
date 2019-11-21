@@ -17,7 +17,9 @@
  */
 int main(int argc, char *argv[])
 	{
-	const char *filename = "../pme/postings.bin";
+//	const char *filename = "../pme/postings.bin";
+	const char *filename = "../interpolative_coding/data/test_collection.docs";
+
 	FILE *fp;
 	if (NULL == (fp = fopen(filename, "rb")))
 		exit(printf("Cannot open %s\n", filename));
@@ -28,12 +30,12 @@ int main(int argc, char *argv[])
 	int *postings_list = new int[NUMDOCS];
 	int *dgaps = new int[NUMDOCS];
 	int *payload = new int [NUMDOCS];
-	int *selectors = new int [MAXSELECTORS];
-	uint8_t *compressed_selectors = new uint8_t [MAXSELECTORS];
+	uint8_t *selectors = new uint8_t [MAXSELECTORS];
 
 	FILE *compressed_lists = fopen("compressedlists.bin", "w");
+	FILE *listdata = fopen("listdata.bin", "w");
 	FILE *locations = fopen("locations.bin", "w");
-	
+
 	while (fread(&length, sizeof(length), 1, fp) == 1)
 		{
 		if (fread(postings_list, sizeof(*postings_list), length, fp) != length)
@@ -51,36 +53,65 @@ int main(int argc, char *argv[])
 			}
 
 		/*
+		  Print raw dgaps
+		*/
+//		printf("list %d, length %d: ", listnumber, length);
+//		for (int i = 0; i < length; i++)
+//			printf("%d, ", dgaps[i]);
+//		printf("\n");
+				
+
+		/*
 		   AVX512 compression
 		*/
 		Pack512 whakaiti;
 		int num_selectors = whakaiti.generate_selectors(selectors, dgaps, dgaps + length);
-		Pack512::listrecord result = whakaiti.avx_compress(payload, compressed_selectors, selectors, num_selectors, dgaps, dgaps + length);
+		Pack512::listrecord result = whakaiti.avx_compress(payload, selectors, num_selectors,
+			dgaps, dgaps + length);
 
 		/* 
-			Serialise compressed data
+			Write pointers to compressed payloads
 		*/
-		int listsize = 16 + result.payload_bytes + result.selector_bytes;
-		fwrite(&cumulativesize, 4, 1, locations);  // write start location
-		fwrite(&listsize, 4, 1, locations);        // write length
-		cumulativesize += listsize;
+		fwrite(&cumulativesize, 4, 1, locations);  
 
-		fwrite(&result.payload_bytes, 4, 1, compressed_lists);
-		fwrite(&result.dgaps_compressed, 4, 1, compressed_lists);
-		fwrite(payload, 1, result.payload_bytes, compressed_lists);
-		fwrite(&result.selector_bytes, 4, 1, compressed_lists);
-		fwrite(&result.num_selectors, 4, 1, compressed_lists);
-		fwrite(compressed_selectors, 1, result.selector_bytes, compressed_lists);
+      /*
+		   Write list metadata
+		 */
+		fwrite(&result.dgaps_compressed, 4, 1, listdata);
+		fwrite(&result.payload_bytes, 4, 1, listdata);
+		fwrite(&result.selector_bytes, 4, 1, listdata);
 		
+		/* 
+			Serialise compressed payloads and selectors
+		*/
+		fwrite(payload, 1, result.payload_bytes, compressed_lists);
+		cumulativesize += result.payload_bytes;
+
+		fwrite(selectors, 1, result.selector_bytes, compressed_lists);
+		cumulativesize += result.selector_bytes;
+
+		if (listnumber == 1)		
+			printf("payload bytes: %d, length: %d, num selectors: %d\n",
+				result.payload_bytes, result.dgaps_compressed, result.num_selectors);
+
+		// if (listnumber == 1)
+		// 	{
+		// 	printf("list zero selectors:\n");
+		// 	for (int j = 0; j < num_selectors; j++)
+		// 		printf("%d, ", selectors[j]);
+		// 	printf("\n");
+		//	}
+
 		listnumber++;
 		}
+	printf("total compressed bytes: %d\n", cumulativesize);
 
 	delete [] payload;
 	delete [] selectors;
 	delete [] dgaps;
 	delete [] postings_list;
-	delete [] compressed_selectors;
 	fclose(fp);
+	fclose(listdata);
 	fclose(compressed_lists);
 	fclose(locations);
 		

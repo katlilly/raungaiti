@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	int *postings_list = new int[NUMDOCS];
 	int *dgaps = new int[NUMDOCS];
 	int *payload = new int [NUMDOCS];
-	int *selectors = new int [MAXSELECTORS];
+	uint8_t *selectors = new uint8_t [MAXSELECTORS];
 	int *decoded = new int [NUMDOCS];
 	uint8_t *compressed_selectors = new uint8_t [MAXSELECTORS];
 	
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 		Pack512 whakaiti;
 		int num_selectors = whakaiti.generate_selectors(selectors, dgaps, dgaps + length);
 		
-		Pack512::listrecord result = whakaiti.avx_compress(payload, compressed_selectors, selectors, num_selectors, dgaps, dgaps + length);
+		Pack512::listrecord result = whakaiti.avx_compress(payload, selectors, num_selectors, dgaps, dgaps + length);
 
 //		if (result.payload_bytes > 7800)
 //			{

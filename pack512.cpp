@@ -9,7 +9,7 @@
   16-int vector. Write those widths to the int array "selectors"
   and return the number of selectors generated.
 */
-int Pack512::generate_selectors(int *selectors, int *dgaps, int *end)
+int Pack512::generate_selectors(uint8_t *selectors, int *dgaps, int *end)
 	{
 	int length = end - dgaps;
 	int current = 0;  // index of first element in a column
@@ -35,22 +35,16 @@ int Pack512::generate_selectors(int *selectors, int *dgaps, int *end)
 
 /*
   Pack a postings list "dgaps" using the generated selectors. Write compressed
-  data to "payload" and run length encoded selectors into "compressed_selectors"
+  data to "payload" and don't compress the selectors
 */
-Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_selectors, int *selectors, int num_selectors, int *raw, int *end)
+Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *selectors, int num_selectors, int *raw, int *end)
 	{
 	listrecord list;
 	list.payload_bytes = 0;
 	list.dgaps_compressed = 0;
 	list.num_selectors = num_selectors;
-
-	/* 
-		Record the original values of these so can use them for
-		compressing selectors after packing payload 
-	 */
-	int *start_selectors = selectors;
-	int ns = num_selectors;
-
+	list.selector_bytes = num_selectors;
+	
 	/*
 	  Pack the payloads
 	 */
@@ -65,16 +59,55 @@ Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_sele
 		list.payload_bytes += 64;
 		}
 
-	/*
-	  Compress the selectors
-	 */
-	if (list.payload_bytes > 7800) // should recursively compress selectors. note problem with overwriting list record
-		list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
-	else 
-		list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
-
 	return list;
 	}
+
+/*
+  Pack a postings list "dgaps" using the generated selectors. Write compressed
+  data to "payload" and run length encoded selectors into "compressed_selectors"
+*/
+
+//Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *compressed_selectors, int *selectors, int num_selectors, int *raw, int *end)
+//	{
+// 	listrecord list;
+// 	list.payload_bytes = 0;
+// 	list.dgaps_compressed = 0;
+// 	list.num_selectors = num_selectors;
+
+// 	/* 
+// 		Record the original values of these so can use them for
+// 		compressing selectors after packing payload 
+// 	 */
+// 	int *start_selectors = selectors;
+// 	int ns = num_selectors;
+
+// 	/*
+// 	  Pack the payloads
+// 	 */
+// 	while (raw < end)
+// 		{
+// 		wordrecord word = encode_one_word(payload, selectors, num_selectors, raw, end);
+// 		payload += 16;
+// 		selectors += word.n_columns;
+// 		num_selectors -= word.n_columns;
+// 		raw += word.n_compressed;
+// 		list.dgaps_compressed += word.n_compressed;
+// 		list.payload_bytes += 64;
+// 		}
+
+// 	/*
+// 	  Compress the selectors
+// 	 */
+// /*	if (list.payload_bytes > 7800) 
+//       // should recursively compress selectors. note problem with overwriting list record
+// 		list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
+// 	else 
+// */
+// 	list.selector_bytes = run_length_encode(compressed_selectors, start_selectors, ns);
+
+// 	return list;
+// 	}
+
 
 /* 
 	Decompress both the payload and the selectors. dgaps for the
@@ -104,7 +137,7 @@ int Pack512::decompress(int *decoded, uint8_t *compressed_selectors, int selecto
   Pack a postings list (dgaps) using those selectors. Write compressed
   data to "payload".  There is no compression of selectors here.
 */
-Pack512::listrecord Pack512::avx_optimal_pack(int *payload, int *selectors, int num_selectors, int *raw, int *end)
+Pack512::listrecord Pack512::avx_optimal_pack(int *payload, uint8_t *selectors, int num_selectors, int *raw, int *end)
 	{
 	listrecord list;
 	list.payload_bytes = 0;
@@ -153,7 +186,7 @@ int Pack512::avx_unpack_list(int *decoded, int *selectors, int num_selectors, in
 /*
   Pack one 512-bit word
 */
-Pack512::wordrecord Pack512::encode_one_word(int *payload, int *selectors, int num_selectors, int *raw, int *end)
+Pack512::wordrecord Pack512::encode_one_word(int *payload, uint8_t *selectors, int num_selectors, int *raw, int *end)
 	{
 	wordrecord result;
 	int length = end - raw;
