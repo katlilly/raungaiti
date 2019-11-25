@@ -9,6 +9,7 @@
 
 //#define DEBUG 
 
+
 class list_data
 	{
 public:
@@ -17,11 +18,9 @@ public:
 	int selector_bytes = 0;
 
 public:
-	list_data() //: payload_bytes(0), length(0), selector_bytes(0)
-		{
-		//nothing
-		}
+	list_data() {}
 	};
+
 
 class Flag
 	{
@@ -31,14 +30,11 @@ public:
 	Flag() : flag(0) {}
 	};
 
-//void thread_decode(std::vector<Flag> &flags, uint8_t *compressedpostings, int *pointers, list_data *metadata)
+
 void thread_decode(std::vector<Flag> &flags, std::vector<std::vector<uint8_t>> payloads, std::vector<std::vector<uint8_t>> selectors, list_data *metadata)
 	{
-	// instatiate a compressor to decode with and allocate memory to decode into
 	Pack512 whakanui;
 	int *decoded = new int[10000];
-//	uint8_t *payload;
-//	uint8_t *selectors;
 	
 	for (uint i = 0; i < flags.size(); i++)
 		if (flags[i].flag == 0)
@@ -46,30 +42,14 @@ void thread_decode(std::vector<Flag> &flags, std::vector<std::vector<uint8_t>> p
 			int expected = 0;
 			if (!flags[i].flag.compare_exchange_strong(expected, 1))
 				continue;
-//printf("decoding list number %d\n", i);
 
-			int numselectors = metadata[i].selector_bytes;
-//printf("length: %d, payload bytes: %d, selector bytes: %d\n", listlength, payload_bytes, numselectors);
-			
-			// point to compressed payload and selectors
-			//payload = compressedpostings + pointers[i];
-			//selectors = compressedpostings + pointers[i] + payload_bytes;
-			
-			
-			
-			int num_decompressed = whakanui.decompress(decoded, selectors[i].data(), numselectors, (int *) payloads[i].data(), metadata[i].length);
-
-			
-//printf("decoding list number %d, decompressed %d of %d dgaps\n", i, num_decompressed, metadata[i].length);
-
+			int num_decompressed = whakanui.decompress(decoded, selectors[i].data(), metadata[i].selector_bytes, (int *) payloads[i].data(), metadata[i].length);
 			}
-
 	}
 
 
 int main(void)
 	{
-
 	/*
 	  Read in pointers to compressed lists
 	*/
@@ -96,8 +76,8 @@ int main(void)
 	filename = "listdata.bin";
 	fp = fopen(filename, "r");
 	list_data *metadata = new list_data [num_elements];
-	if (!fread(metadata, 1, st.st_size, fp))
-		exit(printf("failed to read in pointers to starts of lists\n"));
+	if (!fread(metadata, 3, st.st_size, fp))
+		exit(printf("failed to read in metadata\n"));
 	fclose(fp);
 	for (int i = 0; i < num_elements; i++)
 		;//printf("%d: length %d, payload bytes %d, selector bytes %d\n",i, metadata[i].length, metadata[i].payload_bytes, metadata[i].selector_bytes);
@@ -131,6 +111,9 @@ int main(void)
 		std::vector<uint8_t> current_payload(compressedpostings + cumulative_length, compressedpostings + cumulative_length + this_payload_length);
 		std::vector<uint8_t> current_selector(compressedpostings + cumulative_length + this_payload_length, compressedpostings + cumulative_length + this_payload_length + this_selector_length);
 		payloads.push_back(current_payload);
+//		if (this_payload_length == 0)
+//			exit(printf("%d\n", i));
+//		printf("%d: %d %d\n", i, this_payload_length, this_selector_length);
 		selectors.push_back(current_selector);
 		cumulative_length += this_payload_length;
 		cumulative_length += this_selector_length;
@@ -139,9 +122,10 @@ int main(void)
 	/*
 	  Multithreaded decoding time experiments
 	 */
-	for (int num_threads = 1; num_threads < 17; num_threads++)
+	int maxthreads = 17;
+	int num_repeats = 20;
+	for (int num_threads = 1; num_threads < maxthreads; num_threads++)
 		{
-		int num_repeats = 20;
 		double times[num_repeats];
 
 		for (int repeat = 0; repeat < num_repeats; repeat++)
@@ -164,7 +148,10 @@ int main(void)
 			std::chrono::duration<double> elapsed = finish - start;
 			times[repeat] = elapsed.count();
 			}
-		
+
+		/*
+		  Print results of timing experiments
+		 */
 		printf("%d, ", num_threads);
 		for (int i = 0; i < num_repeats; i++)
 			printf("%5f, ", times[i]);

@@ -77,6 +77,8 @@ int main(int argc, char *argv[])
       /*
 		   Write list metadata
 		 */
+		if (listnumber > 113300)
+			printf("%d: %d, %d, %d\n", listnumber, result.dgaps_compressed, result.payload_bytes, result.selector_bytes);
 		fwrite(&result.dgaps_compressed, 4, 1, listdata);
 		fwrite(&result.payload_bytes, 4, 1, listdata);
 		fwrite(&result.selector_bytes, 4, 1, listdata);
