@@ -47,15 +47,13 @@ class Pack512
 		Write compressed data to "payload" and run length encoded
 		selectors into "compressed_selectors"
 	*/
-//	listrecord avx_compress(int *payload, uint8_t *compressed_selectors,
-//		int *selectors, int num_selectors, int *raw, int *end);
+//	listrecord avx_compress(int *payload, uint8_t *compressed_selectors, int *selectors, int num_selectors, int *raw, int *end);
 
 	/* 
 		Pack a postings list "dgaps" using the generated selectors.
 		Write compressed data to "payload" and don't compress the selectors
 	*/
-	listrecord avx_compress(int *payload, uint8_t *selectors, int num_selectors,
-		int *raw, int *end);
+	listrecord avx_compress(int *payload, uint8_t *selectors, int num_selectors, int *raw, int *end);
 
 	/* 
 		Decompress both the payload and the selectors. dgaps for the
@@ -63,8 +61,7 @@ class Pack512
 		in "payload", compressed selectors are in "compressed_selectors".
 		Return number of dgaps decompressed.
 	*/
-	int decompress(int *decoded, uint8_t *compressed_selectors,
-		int selector_bytes, int *payload, int dgaps_to_decompress);
+	int decompress(int *decoded, uint8_t *compressed_selectors, int selector_bytes, int *payload, int dgaps_to_decompress);
 
 	
 	private:
@@ -73,27 +70,23 @@ class Pack512
 	  Pack a postings list (dgaps) using generated selectors. Write
 	  compressed data to "payload"
 	*/
-	listrecord avx_optimal_pack(int *payload, uint8_t *selectors, int num_selectors,
-		int *raw, int *end);
+	listrecord avx_optimal_pack(int *payload, uint8_t *selectors, int num_selectors, int *raw, int *end);
 
 	/*
 	  Unpack a postings list. Currently using a non-compressed list
 	  of selectors
 	*/
-	int avx_unpack_list(int *decoded, uint8_t *selectors, int num_selectors,
-		int *payload, int to_decompress);
+	int avx_unpack_list(int *decoded, uint8_t *selectors, int num_selectors, int *payload, int to_decompress);
 
    /*
 	  Pack one 512-bit word
 	*/
-	wordrecord encode_one_word(int *payload, uint8_t *selectors, int num_selectors,
-		int *raw, int *end);
+	wordrecord encode_one_word(int *payload, uint8_t *selectors, int num_selectors, int *raw, int *end);
 
 	/*
 	  Decompress one 512-bit word
 	*/
-	wordrecord decode_one_word(int *decoded, uint8_t *selectors, int num_selectors,
-		int *payload, int length);
+	wordrecord decode_one_word(int *decoded, uint8_t *selectors, int num_selectors, int *payload, int length);
 	
 	/*
 	  Run length encoding for selectors, return number of compressed

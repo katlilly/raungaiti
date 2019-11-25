@@ -34,7 +34,7 @@ int Pack512::generate_selectors(uint8_t *selectors, int *dgaps, int *end)
 	}
 
 /*
-  Pack a postings list "dgaps" using the generated selectors. Write compressed
+  Pack a postings list "raw" using the generated selectors. Write compressed
   data to "payload" and don't compress the selectors
 */
 Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *selectors, int num_selectors, int *raw, int *end)
@@ -45,9 +45,7 @@ Pack512::listrecord Pack512::avx_compress(int *payload, uint8_t *selectors, int 
 	list.num_selectors = num_selectors;
 	list.selector_bytes = num_selectors;
 	
-	/*
-	  Pack the payloads
-	 */
+	/* pack the payloads */
 	while (raw < end)
 		{
 		wordrecord word = encode_one_word(payload, selectors, num_selectors, raw, end);

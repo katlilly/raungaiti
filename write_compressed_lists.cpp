@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 			{
 			printf("length: %d, payload bytes: %d, num selectors: %d\n",
 				result.dgaps_compressed, result.payload_bytes, result.num_selectors);
-			for (int i = 0; i < length; i++)
+			for (uint i = 0; i < length; i++)
 				printf("%d, ", dgaps[i]);
 			printf("\n");
 			}
