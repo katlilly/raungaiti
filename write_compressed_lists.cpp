@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 		fwrite(selectors, 1, result.selector_bytes, compressed_lists);
 		cumulativesize += result.selector_bytes;
 
-		if (listnumber == 1)
+		if (listnumber == 4)
 			{
 			printf("length: %d, payload bytes: %d, num selectors: %d\n",
 				result.dgaps_compressed, result.payload_bytes, result.num_selectors);

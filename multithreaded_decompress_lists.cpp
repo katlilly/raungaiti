@@ -7,7 +7,7 @@
 #include <vector>
 #include "pack512.h"
 
-#define DEBUG 
+//#define DEBUG 
 
 /*
   A class to hold the metadata read in for each list
@@ -37,23 +37,27 @@ public:
 /*
   Decode a whole block of compressed lists with multiple threads
 */
-void thread_decode(std::vector<Flag> &flags, std::vector<std::vector<uint8_t>> payloads, std::vector<std::vector<uint8_t>> selectors, list_data *metadata)
+void thread_decode(std::vector<Flag> &flags, std::vector<std::vector<uint8_t>> payloads, std::vector<std::vector<uint8_t>> selectors, list_data *metadata, std::vector<int> *out)
 	{
 	Pack512 whakanui;
 	int *decoded = new int[10000];
-	
+		
 	for (uint i = 0; i < flags.size(); i++)
 		if (flags[i].flag == 0)
 			{
+			// find a list that needs decompressing
 			int expected = 0;
 			if (!flags[i].flag.compare_exchange_strong(expected, 1))
 				continue;
 
+			// decompress that list
 			int num_decompressed = whakanui.decompress(decoded, selectors[i].data(), metadata[i].selector_bytes, (int *) payloads[i].data(), metadata[i].length);
-			if (num_decompressed != metadata[i].length)
-				exit(printf("decompressed wrong number of ints\n"));
+
+			// write decompressed output so we can check for errors
+			std::vector<int> currentlist(decoded, decoded + num_decompressed);
+			out[i] = currentlist;
 			}
-	free(decoded);
+	delete [] decoded;
 	}
 
 /*
@@ -124,7 +128,10 @@ int main(void)
 	  Multithreaded decoding time experiments
 	 */
 	int maxthreads = 17;
-	int num_repeats = 1;
+	int num_repeats = 50;
+
+	std::vector<int> *output = new std::vector<int>[num_elements];
+	
 	for (int num_threads = 1; num_threads < maxthreads; num_threads++)
 		{
 		double times[num_repeats];
@@ -137,7 +144,7 @@ int main(void)
 			std::vector<std::thread> decoder_pool;
 			std::vector<Flag> done(num_elements);
 			for (int i = 0; i < num_threads; i++)
-				decoder_pool.push_back(std::thread(thread_decode, std::ref(done), payloads, selectors, metadata));
+				decoder_pool.push_back(std::thread(thread_decode, std::ref(done), payloads, selectors, metadata, output));
 
 			/*
 			  Set up timers and start threads
@@ -159,10 +166,19 @@ int main(void)
 		printf("\n");
 		}
 
+#ifdef DEBUG	
+	for (int i = 0; i < 10; i++)
+		{
+		printf("%d: %lu: ", i, output[i].size());
+		for (uint j = 0; j < output[i].size(); j++)
+			printf("%d, ", output[i][j]);
+		printf("\n");
+		}
+
 	/*
 	  Decompress a single list 
 	*/
-	int i = 2;
+	int i = 4;
 	printf("start: %d, length: %d, ", pointers[i], metadata[i].length);
 	printf("payload bytes: %d, selector bytes: %d\n", metadata[i].payload_bytes, metadata[i].selector_bytes);
 
@@ -171,7 +187,7 @@ int main(void)
  	int num_decompressed = whakanui.decompress(decoded, selectors[i].data(), metadata[i].selector_bytes, (int *) payloads[i].data(), metadata[i].length);
  	printf("decompressed %d dgaps\n", num_decompressed);
 
-#ifdef DEBUG
+
  	for (int i = 0; i < num_decompressed; i++)
  		printf("%d, ", decoded[i]);
  	printf("\n");
